@@ -824,4 +824,98 @@ fun1
 (↑ 2 3)
 (⊕ 6 8)
 (⊕ (× 2 3) (↑ 2 3))
-(value '(⊕ (× 2 3) (↑ 2 3)))
+"value runs very low..."
+;(value '(⊕ (× 2 3) (↑ 2 3)))
+
+; p135
+(define multirember
+  (lambda (a lat)
+    (cond
+      ((null? lat) (quote ()))
+      ((eq? a (car lat))
+       (multirember (cdr lat)))
+      (else (cons (car lat)
+                  (multirember a (cdr lat))))
+      )
+    ))
+
+(define multirember-f
+  (lambda (test?)
+    (lambda (a lat)
+      (cond
+        ((null? lat) (quote ()))
+        ((test? a (car lat))
+         ((multirember-f test?) a (cdr lat)))
+        (else (cons (car lat)
+                    ((multirember-f test?) a (cdr lat))))
+        )
+      )))
+
+; p136
+(define multirember-eq?
+  (multirember-f test?))
+
+(define eq?-tuna
+  (eq?-c (quote tuna)))
+
+(define multiremberT
+  (lambda (test? lat)
+    (cond
+      ((null? lat) (quote ()))
+      ((test? (car lat))
+       (multiremberT test? (cdr lat)))
+      (else (cons (car lat)
+                  (multiremberT test? (cdr lat))))
+      )
+    ))
+
+(define test? eq?-tuna)
+(define lat '(shrimp salad tuna salad and tuna))
+(multiremberT test? lat)
+
+; &
+; p137
+; collector
+(define multirember&co
+  (lambda (a lat col)
+    (cond
+      ((null? lat)
+       (col (quote ()) (quote ())))
+      ((eq? (car lat) a)
+       (multirember&co a
+                       (cdr lat)
+                       (lambda (newlat seen)
+                         (col newlat (cons (car lat) seen)))
+                       )
+       )
+      (else
+       (multirember&co a
+                       (cdr lat)
+                       (lambda (newlat seen)
+                         (col (cons (car lat) newlat) seen))
+                       )
+       )
+      )
+    ))
+
+(define a-friend
+  (lambda (x y)
+    (null? y)))
+
+(define new-friend
+  (lambda (newlat seen)
+    (a-friend newlat
+              (cons (quote tuna) seen))))
+
+; p138
+(define a 'tuna)
+(define lat '(strawberries tuna and swordfish))
+(define col a-friend)
+"a-friend:"
+(multirember&co a lat col)
+"friendlier example:"
+(define lat '())
+(multirember&co a lat col)
+
+
+
