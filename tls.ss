@@ -917,5 +917,321 @@ fun1
 (define lat '())
 (multirember&co a lat col)
 
+; p139
+(define latest-friend
+  (lambda (newlat seen)
+    (a-friend (cons (quote and) newlat) seen)
+    ))
+
+; p140
+(define last-friend
+  (lambda (x y)
+    (length x)))
+
+(define ls '(strawberries tuna and swordfish))
+(define col last-friend) ; or 'last-friend
+"number of atoms that are not eq? to 'tuna in list ls: "
+(multirember&co (quote tuna) ls col)
+
+; p141
+(define multiinsertL
+  (lambda (new old lat)
+    (cond
+      ((null? lat) (quote ()))
+      ((eq? (car lat) old)
+       (cons new (cons old
+                       (multiinsertL new old (cdr lat)))
+             )
+       )
+      (else
+       (cons (car lat)
+             (multiinsertL new old (cdr lat)))
+       )
+      )))
+
+
+(define multiinsertR
+  (lambda (new old lat)
+    (cond
+      ((null? lat) (quote ()))
+      ((eq? (car lat) old)
+       (cons old (cons new
+                       (multiinsertL new old (cdr lat)))
+             )
+       )
+      (else
+       (cons (car lat)
+             (multiinsertR new old (cdr lat)))
+       )
+      )))
+
+; inserts new to the left of oldL and to the right of oldR in lat
+; if oldL and oldR are different.
+(define multiinsertLR
+  (lambda (new oldL oldR lat)
+    (cond
+      ((null? lat) (quote ()))
+      ((eq? (car lat) oldL)
+       (cons new
+             (cons oldL
+                   (multiinsertLR new oldL oldR (cdr lat))
+                   )
+             )
+       )
+      ((eq? (car lat) oldR)
+       (cons oldR
+             (cons new
+                   (multiinsertLR new oldL oldR (cdr lat))
+                   )
+             )
+       )
+      (else
+       (cons (car lat) (multiinsertLR new oldL oldR (cdr lat)))
+       )
+      )
+    ))
+
+(define lat '(a b c d e))
+(define new 'n)
+(define oldL 'c)
+(define oldR 'c)
+(multiinsertLR new oldL oldR lat)
+
+; p142
+; outline of multiinsertLR&co
+(define multiinsertLR&co
+  (lambda (new oldL oldR lat col)
+    (cond
+      ((null? lat)
+       (col (quote ()) 0 0)) ; return
+      ((eq? (car lat) oldL)
+       (multiinsertLR&co new oldL oldR (cdr lat)
+                         (lambda (newlat L R)
+                           (col
+                            (cons new (cons oldL newlat))
+                            (add1 L) R
+                            )))) ; ...
+      ((eq? (car lat) oldR)
+       (multiinsertLR&co new oldL oldR (cdr lat)
+                         (lambda (newlat L R)
+                           (col
+                            (cons oldR (cons new newlat))
+                            L (add1 R)
+                            )))) ; ...
+      (else
+       (multiinsertLR&co new oldL oldR (cdr lat)
+                         (lambda (newlat L R)
+                           (col (cons (car lat) newlat) L R))) ; ...
+       )
+      )
+    ))
+
+; × ÷ ⊕
+(define even?? ; even? already defined
+  (lambda (n)
+    (= (× (÷ n 2) 2) n)))
+
+; p144
+(define evens-only*
+  (lambda (l)
+    (cond
+      ((null? l) (quote ()))
+      ((atom? (car l))
+       (cond
+         ((even?? (car l))
+          (cons (car l)
+                (evens-only* (cdr l))))
+         (else (evens-only* (cdr l)))
+         )
+       )
+      (else (cons (evens-only* (car l))
+                  (evens-only* (cdr l))))
+      )
+    ))
+
+(define l '((9 1 2 8) 3 10 ((9 9) 7 6) 2) )
+"only even numbers(atoms) left:"
+(evens-only* l)
+
+; p145
+; an outline
+(define evens-only*&co
+  (lambda (l col)
+    (cond
+      ((null? l)
+       (col (quote ()) 1 0))
+      ((atom? (car l))
+       (cond
+         ; mult evens
+         ((even?? (car l))
+          (evens-only*&co
+           (cdr l)
+           (lambda (newl p s)
+             (col (cons (car l) newl)
+                  (× (car l) p) s)
+             )
+           )
+          )
+         ; sum odds
+         (else
+          (evens-only*&co
+           (cdr l)
+           (lambda (newl p s)
+             (col newl
+                  p (⊕ (car l) s))
+             )
+           )
+          )
+         ))
+      ; non-atom? list?
+      (else
+       (evens-only*&co
+        (car l) ; cdr???
+        ; collector/continuation:
+        ; It cons-es together the results for the lists in the car
+        ; and the cdr and multiplies and adds the respective
+        ; products and sums. Then it passes these values to
+        ; the old collector:
+        (lambda (al ap as)
+          (evens-only*&co
+           (cdr l)
+           (lambda (dl dp ds)
+             (col (cons al dl)
+                  (× ap dp)
+                  (⊕ as ds))
+             )
+           )
+          )
+        )
+       )
+      )
+    ))
+
+(define the-last-friend
+  (lambda (newl product sum)
+    (cons sum (cons product newl))))
+
+(define l '((9 1 2 8) 3 10 ((9 9) 7 6) 2) )
+
+(evens-only*&co l the-last-friend)
+
+
+;
+; chap 9
+;
+; partial function
+(define looking
+  (lambda (a lat)
+    (keep-looking a (pick 1 lat) lat)))
+
+(define a 'caviar)
+(define lat '(6 2 4 caviar 5 7 3) )
+
+; sorn: symbol or number
+(define keep-looking
+  (lambda (a sorn lat)
+    (cond
+      ((number? sorn)
+       (keep-looking a (pick sorn lat) lat))
+      (else (eq? sorn a))
+      )))
+
+
+(looking a lat)
+
+;(define lat '(7 1 2 caviar 5 6 3) )
+;"keep looking..."
+;(looking a lat)
+
+(define eternity
+  (lambda (x)
+    (eternity x)))
+
+; ((a b) c) => (a (b c))
+; p152
+(define shift
+  (lambda (pair)
+    (build (first (first pair))
+           (build (second (first pair))
+                  (second pair)))))
+
+(define pair '((a b) c) )
+"pair: "
+pair
+"shift to:"
+"pair: "
+(shift pair)
+(shift pair)
+
+; this function violates the seventh commandment
+(define align
+  (lambda (pora)
+    (cond
+      ((atom? pora) pora)
+      ((a-pair? (first pora))
+       (align (shift pora))) ; new pora is not a part of old pora
+      (else
+       (build (first pora)
+              (align (second pora)))
+       )
+      )
+    ))
+
+
+(define length*
+  (lambda (pora)
+    (cond
+      ((atom? pora) 1)
+      (else
+       (⊕ (length* (first pora))
+          (length* (second pora)))
+       )
+      )
+    ))
+
+; × ÷ ⊕
+(define weight*
+  (lambda (pora)
+    (cond
+      ((atom? pora) 1)
+      (else
+       (⊕ (× (weight* (first pora)) 2)
+          (weight* (second pora)))
+       )
+      )))
+
+(define x '((a b) c) )
+"weight of x="
+x
+"is:"
+(weight* x)
+
+(define x '(a (b c)) )
+"weight of x="
+x
+"is:"
+(weight* x)
+
+; p154
+(define shuffle
+  (lambda (pora)
+    (cond
+      ((atom? pora) pora)
+      ((a-pair? (first pora))
+       (shuffle (revpair pora)))
+      (else
+       (build (first pora)
+              (shuffle (second pora)))
+       )
+      )
+    ))
+
+(define x '((a b) (c d)) )
+"shuffle of x:"
+x
+"is:"
+(shuffle x) ; very slow on drracket
+
+
 
 
