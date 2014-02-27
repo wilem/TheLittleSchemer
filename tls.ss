@@ -96,7 +96,7 @@
 (define len
   (lambda (lat)
     (cond
-      (( null? lat) 0)
+      ((null? lat) 0)
       (else (add1 (len (cdr lat)))))))
 
 ; atom at nth pos in list
@@ -1213,6 +1213,8 @@ x
 (weight* x)
 
 ; p154
+; this function is not total
+; and will not stop on param: ((a b) (c d))
 (define shuffle
   (lambda (pora)
     (cond
@@ -1226,12 +1228,375 @@ x
       )
     ))
 
-(define x '((a b) (c d)) )
-"shuffle of x:"
-x
-"is:"
-(shuffle x) ; very slow on drracket
+
+;(define x '((a b) (c d)) ) ; shuffle will be very slow on that.
+;(define x '((a b) c) )
+;"shuffle of x:"
+;x
+;"is:"
+;(shuffle x) ; very slow on drracket???
+
+; p155
+; will not yield a value for 0
+; Collatz conjecture: http://en.wikipedia.org/wiki/Collatz_conjecture
+(define C
+  (lambda (n)
+    (cond
+      ((one? n) 1)
+      (else
+       (cond
+         ((even? n) (C (/ n 2)))
+         (else (C (add1 (* 3 n))))
+         )
+       )
+      )
+    ))
+
+"C(3):"
+(C 3)
+"C(6):"
+(C 6)
+;"C(0):"
+;(C 0)
+
+; Ackermann function: http://en.wikipedia.org/wiki/Ackermann_function
+;
+(define A
+  (lambda (n m)
+    (cond
+      ((zero? n) (add1 m))
+      ((zero? m) (A (sub1 n) 1))
+      (else (A (sub1 n)
+               (A n (sub1 m))))
+      )))
+
+"(A 1 0)"
+(A 1 0)
+"(A 1 1)"
+(A 1 1)
+"(A 2 2)"
+(A 2 2)
+"(A 3 3)"
+(A 3 3)
+;"(A 4 4)"
+;(A 4 4) ; will not stop here.
+"(A 1 2)"
+(A 1 2)
+;"(A 4 3)"
+;(A 4 3) ; will never return a value...
+
+; p157
+; (define ...) does not work for will-stop?
+;(define will-stop?
+;  (lambda (f)
+;    ...))
+
+(define last-try
+  (lambda (x)
+    (and (will-stop? last-try)
+         (eternity x))))
 
 
 
+; the Y combinator
+(define Y
+  (lambda (le)
+    ((lambda (f) (f f))
+     (lambda (f)
+       (le (lambda (x) ((f f) x)))
+       )
+     )
+    ))
 
+
+;
+; 'length is a constant, use 'length-of instead.
+(define length-of
+  (lambda (l)
+    (cond
+      ((null? l) 0)
+      (else (add1 (length-of (cdr l))))
+      )
+    )
+  )
+
+len
+
+; DESC:   Without (define ...):
+;         It determines the length of the empty list
+;         and nothing else.
+; NOTE:   Replace 'length with 'eternity
+; RETURN: no answer(result is undefine) for non-empty list.
+; NAME:   length-of=0
+(lambda (l)
+  (cond
+    ((null? l) 0)
+    (else (add1
+           (eternity ; place
+            (cdr l))))))
+
+; NAME: length-of<=1
+(lambda (l)
+  (cond
+    ((null? l) 0)
+    (else (add1
+           (length-of=0 ; next version of length-of
+            (cdr l))))))
+
+; replace length-of0 by its definition
+(lambda (l) ; length-of<=1
+  (cond
+    ((null? l) 0)
+    (else (add1
+           ((lambda (l) ; length-of=0
+              (cond
+                ((null? l) 0)
+                (else (add1
+                       (eternity
+                        (cdr l))))))
+            (cdr l))))))
+
+; then length-of<=2
+; by replace 'eternity with definition of 'length-of=0
+(lambda (l) ; length-of<=2
+  (cond
+    ((null? l) 0)
+    (else (add1
+           ((lambda (l) ; length-of<=1
+              (cond
+                ((null? l) 0)
+                (else (add1
+                       ((lambda (l) ; length-of=0
+                          (cond
+                            ((null? l) 0)
+                            (else (add1
+                                   (eternity ; undefined
+                                    (cdr l))))))
+                        (cdr l))))))
+            (cdr l))))))
+
+; length-of=0 revised:
+; produce the function 'length-of=0
+((lambda (length-of)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1
+              (length-of
+               (cdr l)))))))
+ eternity)
+
+; rewrite length-of<=1:
+; replace 'eternity with 'length-of=0
+; on the definition of 'length-of=0 itselft.
+; copy -> select 'eternity' -> paste
+
+; length-of<=1
+((lambda (f)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1
+              (f
+               (cdr l)))))))
+ ; length-of=0, as arg f.
+ ((lambda (g)
+    (lambda (l)
+      (cond
+        ((null? l) 0)
+        (else (add1
+               (g
+                (cdr l)))))))
+  ; undefined, as arg g.
+  eternity))
+
+; rewrite length-of<=2:
+; produce length-of<=2.
+((lambda (length-of)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1
+              (length-of
+               (cdr l)))))))
+ ; length-of<=1, as arg length-of.
+ ((lambda (length-of)
+    (lambda (l)
+      (cond
+        ((null? l) 0)
+        (else (add1
+               (length-of
+                (cdr l)))))))
+  ; length-of=0, as arg length-of.
+  ((lambda (length-of)
+     (lambda (l)
+       (cond
+         ((null? l) 0)
+         (else (add1
+                (length-of
+                 (cdr l)))))))
+   eternity)))
+
+; get rid of the repetitions.
+; mk-length:
+; The function that takes length as an argument
+; and that returns a function that looks like length.
+;
+; rewrite length-of=0:
+;
+; the tuple (f e)
+(
+ ; the repeated lambda expr pattern.
+ (lambda (length-of)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1
+              (length-of
+               (cdr l)))))))
+ eternity)
+
+;
+; ===>
+; g -> (g eternity)
+;
+; just evaluate the tuple (f g)
+; produce length-of=0
+((lambda (mk-length)
+   (mk-length eternity))
+ ; the pattern, as arg 'mk-length
+ (lambda (length-of)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1
+              (length-of
+               (cdr l)))))))
+ )
+
+
+; rewrite of length-of<=1:
+; replace mk-length with (mk-length eternity)
+; produce length-of<=1
+((lambda (mk-length)
+   (mk-length
+    (mk-length eternity)))
+ ; the pattern, as arg 'mk-length
+ (lambda (length-of)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1
+              (length-of
+               (cdr l)))))))
+ )
+
+; and so easy to produce length-of<=2:
+((lambda (mk-length)
+   (mk-length
+    (mk-length
+     (mk-length eternity))))
+ ; the pattern, as arg 'mk-length
+ (lambda (length-of)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1
+              (length-of
+               (cdr l)))))))
+ )
+
+; and length-of<=3:
+; just the recursion of mk-length,
+; like infinite applications of mk-length
+; to an 'arbitrary' function.
+((lambda (mk-length)
+   (mk-length ; <=3
+    (mk-length ; <=2
+     (mk-length ; <=1
+      (mk-length eternity))))) ; =0
+ ; the pattern, as arg 'mk-length
+ (lambda (length-of)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1
+              (length-of
+               (cdr l)))))))
+ )
+
+
+; length-of=0:
+((lambda (mk-length)
+   (mk-length eternity))
+ ; the pattern, as arg 'mk-length
+ (lambda (length-of)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1
+              (length-of
+               (cdr l)))))))
+ )
+;
+; transform 1:
+; replace 'eternity with 'mk-length
+((lambda (mk-length)
+   (mk-length mk-length))
+ ; the pattern, as arg 'mk-length
+ (lambda (length-of)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1
+              (length-of
+               (cdr l)))))))
+ )
+;
+; transform 2:
+; then replace 'length-of with 'mk-length
+((lambda (mk-length)
+   (mk-length mk-length))
+ ; the pattern, as arg 'mk-length
+ (lambda (mk-length)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1
+              (mk-length
+               (cdr l)))))))
+ )
+
+
+; revised length-of<=1:
+((lambda (mk-length)
+   (mk-length mk-length))
+ ; the pattern, as arg 'mk-length
+ (lambda (mk-length)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1
+              ((mk-length eternity) ; apply once.
+               (cdr l)))))))
+ )
+
+; p166
+(define l '(apples))
+" apply length-of<=1 to (apples): "
+(
+ ; function length-of<=1
+ ((lambda (mk-length)
+   (mk-length mk-length))
+ ; the pattern, as arg 'mk-length
+ (lambda (mk-length)
+   (lambda (l)
+     (cond
+       ((null? l) 0)
+       (else (add1
+              ((mk-length eternity) ; apply once.
+               (cdr l)))))))
+ )
+ ; arg: list with length of 1.
+ l
+)
